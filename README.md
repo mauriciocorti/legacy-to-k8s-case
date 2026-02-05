@@ -122,23 +122,3 @@ Solution:
 - Environment-based separation
 
 📄 See: `argo-cd/application.yaml`
-
----
-
-## Key DevOps Skills Demonstrated
-
-- Legacy system modernization
-- CI/CD pipeline design
-- Cross-repository orchestration
-- Secure containerization
-- Kubernetes production patterns
-- GitOps with Argo CD
-- Troubleshooting complex auth and networking issues
-
----
-
-## Author
-
-**Senior DevOps Engineer**  
-15+ years in infrastructure evolution  
-Focus on automation, reliability, and modernization
