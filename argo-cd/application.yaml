@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: your-name-app-integration
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/<your-org-or-user>/legacy-to-k8s-case.git
+    targetRevision: main
+    path: kubernetes
+    directory:
+      recurse: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: your-name-app
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
