@@ -1,17 +1,5 @@
 # Architecture Overview
 
-[User]
-  ↓
-[Ingress NGINX]
-  ↓
-[Frontend (Vue/Nginx)]
-  ↓ /api
-[Backend (Spring Boot)]
-  ↓
-[PostgreSQL]
-  ↓
-[External Auth API]
-
 ## Context and Motivation
 
 **RegistroVisitas** was a legacy application responsible for a single but critical task: registering every visitor arriving at the central building.
