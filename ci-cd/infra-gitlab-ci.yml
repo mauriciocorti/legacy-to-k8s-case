@@ -1,1 +1,63 @@
+stages:
+  - download
+  - package
+  - deploy
 
+variables:
+  REMOTE_CI_COMMIT: $CI_COMMIT_SHORT_SHA
+  REMOTE_COMMIT_MSG: $CI_COMMIT_MESSAGE
+  REMOTE_AUTHOR: $CI_COMMIT_AUTHOR
+
+download:
+  stage: download
+  image: alpine/curl:latest
+  script:
+    - >
+      curl -L
+      --create-dirs
+      --output ${REMOTE_FILENAME}
+      --header "PRIVATE-TOKEN: <GITLAB_TOKEN>"
+      ${CI_API_V4_URL}/projects/${REMOTE_PROJECT_ID}/jobs/${REMOTE_JOB_ID}/artifacts/${REMOTE_FILENAME}
+  artifacts:
+    paths:
+      - ${REMOTE_FILENAME}
+
+package-all:
+  stage: package
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - export TAG=${AMBIENTE}-${REMOTE_CI_COMMIT}
+    - mkdir -p /kaniko/.docker
+    - |
+      echo "{
+        \"auths\": {
+          \"${CI_REGISTRY}\": {
+            \"auth\": \"<BASE64_REGISTRY_AUTH>\"
+          }
+        }
+      }" > /kaniko/.docker/config.json
+    - >
+      /kaniko/executor
+      --build-arg ARTIFACT=${REMOTE_FILENAME}
+      --build-arg AMBIENTE=${AMBIENTE}
+      --context ${CI_PROJECT_DIR}
+      --dockerfile docker/${REMOTE_PROJECT_NAME}/Dockerfile
+      --destination ${REMOTE_REGISTRY_IMAGE}:${TAG}
+
+deploy:
+  stage: deploy
+  image: alpine/git:latest
+  before_script:
+    - export FECHA=$(date +%Y%m%d%H%M)
+    - export TAG=${AMBIENTE}-${REMOTE_CI_COMMIT}
+    - export CONTAINER_IMAGE=${REMOTE_REGISTRY_IMAGE}:${TAG}
+    - git remote set-url origin https://<git-user>:<git-token>@gitlab.example.com/${CI_PROJECT_PATH}.git
+    - git config --global user.email "ci@example.com"
+    - git config --global user.name "GitLab CI"
+  script:
+    - git pull origin main
+    - sed -i "s~image:.*~image: ${CONTAINER_IMAGE}~" deployments/${REMOTE_PROJECT_NAME}/${AMBIENTE}/deployment.yaml
+    - git commit -am "[${REMOTE_PROJECT_NAME} - ${AMBIENTE}] Deploy ${REMOTE_CI_COMMIT}"
+    - git push origin HEAD:main

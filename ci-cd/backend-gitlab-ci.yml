@@ -1,1 +1,63 @@
+stages:
+  - build
+  - package
 
+cache:
+  paths:
+    - .m2/repository
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+
+maven-build:
+  image: maven:3.9.5
+  stage: build
+  before_script:
+    - export CICD_GIT_BRANCH=$CI_COMMIT_REF_NAME
+    - export YEAR=$(date +%Y)
+  script:
+    - mvn -version
+    - echo "BUILD_JOB_ID=${CI_JOB_ID}" >> build.env
+    - mvn clean install -Dmaven.test.skip=true -f pom.xml
+  artifacts:
+    paths:
+      - target/backend-app.jar
+    reports:
+      dotenv: build.env
+  only:
+    refs: ['integration']
+
+package-job:
+  stage: package
+  image: alpine/curl:latest
+  variables:
+    REMOTE_PROJECT_ID: $CI_PROJECT_ID
+    REMOTE_JOB_ID: $BUILD_JOB_ID
+    REMOTE_CI_COMMIT: $CI_COMMIT_SHORT_SHA
+    REMOTE_COMMIT_MSG: $CI_COMMIT_MESSAGE
+    REMOTE_AUTHOR: $CI_COMMIT_AUTHOR
+    REMOTE_PROJECT_PATH: $CI_PROJECT_PATH
+    REMOTE_FILENAME: target/backend-app.jar
+    REMOTE_REGISTRY_IMAGE: $CI_REGISTRY_IMAGE
+    REMOTE_PROJECT_NAME: $CI_PROJECT_NAME
+    AMBIENTE: $CI_COMMIT_REF_NAME
+  script:
+    - >
+      curl -X POST
+      -F token=<PIPELINE_TRIGGER_TOKEN>
+      -F ref=main
+      -F "variables[REMOTE_PROJECT_ID]=$CI_PROJECT_ID"
+      -F "variables[REMOTE_JOB_ID]=$BUILD_JOB_ID"
+      -F "variables[AMBIENTE]=$CI_COMMIT_REF_NAME"
+      -F "variables[REMOTE_CI_COMMIT]=$CI_COMMIT_SHORT_SHA"
+      -F "variables[REMOTE_COMMIT_MSG]=$CI_COMMIT_MESSAGE"
+      -F "variables[REMOTE_AUTHOR]=$CI_COMMIT_AUTHOR"
+      -F "variables[REMOTE_PROJECT_PATH]=$CI_PROJECT_PATH"
+      -F "variables[REMOTE_FILENAME]=$REMOTE_FILENAME"
+      -F "variables[REMOTE_REGISTRY_IMAGE]=$CI_REGISTRY_IMAGE"
+      -F "variables[REMOTE_PROJECT_NAME]=$CI_PROJECT_NAME"
+      https://gitlab.example.com/api/v4/projects/<INFRA_PROJECT_ID>/trigger/pipeline
+  needs:
+    - job: maven-build
+  only:
+    refs: ['integration']
