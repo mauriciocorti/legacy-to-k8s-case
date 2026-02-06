@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: your-name-app-frontend
+  namespace: integra-your-name-app
+  labels:
+    app: your-name-app-frontend
+    ambiente: integracion
+spec:
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: your-name-app-frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: your-name-app-frontend
+        ambiente: integracion
+        commit: "COMMIT_SHA"
+        fecha: "YYYYMMDDHHMM"
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/integracion
+                operator: In
+                values:
+                - integracion
+      containers:
+      - name: frontend
+        image: registry.example.com/your-name-app/frontend:integracion-COMMIT_SHA
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 45
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "0.3"
+            memory: 512Mi
+          limits:
+            cpu: "0.5"
+            memory: 1024Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+              - ALL
+      imagePullSecrets:
+        - name: registry-credentials
+      securityContext:
+        fsGroup: 1000
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
